@@ -1,0 +1,83 @@
+```{r}
+# Install the readxl package
+#install.packages("readxl")
+
+# Alternatively, you can use the openxlsx package
+#install.packages("openxlsx")
+
+library(readxl)   # For readxl package
+# or
+library(openxlsx) # For openxlsx package
+#install.packages("writexl")
+library(writexl)
+
+```
+
+```{r}
+file_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/express_result/N-3568_combined_sorted_results.xlsx"
+data <- read_excel(file_path)
+
+# View the first few rows of the data
+head(data)
+#view(data)
+
+```
+```{r}
+# Step 3: Check if all columns (tot_counts, uniq_counts, and est_counts) are identical using 'identical()'
+# This checks if the entire columns are identical
+are_columns_identical <- identical(data$tot_counts, data$uniq_counts) && identical(data$tot_counts, data$est_counts)
+
+# Output the result of the identical check
+if (are_columns_identical) {
+  print("All columns (tot_counts, uniq_counts, est_counts) are identical.")
+} else {
+  print("Columns (tot_counts, uniq_counts, est_counts) are NOT identical.")
+}
+
+# Step 4: Element-wise comparison to check row-by-row equality
+# This will return a logical vector indicating if the values in each row are the same across the columns
+all_equal <- (data$tot_counts == data$uniq_counts) & (data$tot_counts == data$est_counts)
+
+# Step 5: Check if all values in the logical vector are TRUE (i.e., all rows are the same)
+are_all_rows_equal <- all(all_equal)
+
+# Output the result of the row-wise comparison
+if (are_all_rows_equal) {
+  print("All rows have identical values in tot_counts, uniq_counts, and est_counts.")
+} else {
+  print("Some rows have different values in tot_counts, uniq_counts, and est_counts.")
+}
+
+# Step 6: Identify and display the rows where the columns differ
+# This will extract the rows where the columns are not identical
+different_rows <- data[!all_equal, ]
+
+# Output the number of rows where the columns differ
+cat("Number of rows where columns differ:", nrow(different_rows), "\n")
+
+# Optionally, display the different rows for inspection
+if (nrow(different_rows) > 0) {
+  View(different_rows)  # Open in RStudio's View window
+} else {
+  print("No differing rows found.")
+}
+
+```
+```{r}
+# Step 1: Rename the 'tot_counts' column to 'raw_counts'
+colnames(data)[colnames(data) == "tot_counts"] <- "raw_counts"
+
+# Step 2: Remove the 'uniq_counts' and 'est_counts' columns
+data <- data[, !names(data) %in% c("uniq_counts", "est_counts")]
+
+# Step 3: View the updated dataset with the renamed column
+#View(data)  # Open in RStudio's View window
+
+# Optionally, print the first few rows of the updated data
+head(data)
+
+# Save the modified data to a new Excel file
+write_xlsx(data, "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/express_revised/N-3713_revised.xlsx")
+
+```
+

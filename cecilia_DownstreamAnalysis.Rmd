@@ -1,0 +1,254 @@
+```{r}
+install.packages("adegenet")
+install.packages("ggpubr")
+install.packages("broom")
+install.packages("AICcmodavg")
+```
+
+
+```{r}
+#load libraries
+library(tidyverse)
+library(readr)
+library(DESeq2)
+library(EnhancedVolcano)
+library(readxl)
+library(adegenet)
+```
+
+```{r}
+Merged_Data <- read_excel("/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/final_merged_grouped_by_gene_id.xlsx")
+
+```
+
+```{r}
+# Create a new data frame with sample_id column
+sample_ids <- data.frame(sample_id = colnames(Merged_Data)[4:13])
+
+# Add Source_Population using mutate and case_when
+sample_id_batch_data <- sample_ids %>%
+  mutate(coloration = case_when(
+    sample_id == "N-3618" ~ "DARK-WT",
+    sample_id == "N-4043a" ~ "DARK-WT",
+    sample_id == "N-3711" ~ "DARK-WT",
+    sample_id == "B-5009" ~ "PALE-pel",
+    sample_id == "B-4628" ~ "PALE-pel",
+    sample_id == "B-4352" ~ "PALE-pel",
+    sample_id == "N-3568" ~ "DARK-WT",
+    sample_id == "N-3713" ~ "DARK-WT",
+    sample_id == "B-4033" ~ "PALE-pel",
+    sample_id == "B-4161" ~ "PALE-pel",
+    TRUE ~ NA_character_  # Optional: handle unmatched cases
+  ))
+
+sample_id_batch_data <- sample_id_batch_data %>%
+  mutate(batch_number = case_when(
+    sample_id == "N-3618" ~ "BATCH 2",
+    sample_id == "N-4043a" ~ "BATCH 2",
+    sample_id == "N-3711" ~ "BATCH 2",
+    sample_id == "B-5009" ~ "BATCH 2",
+    sample_id == "B-4628" ~ "BATCH 2",
+    sample_id == "B-4352" ~ "BATCH 2",
+    sample_id == "N-3568" ~ "BATCH 1",
+    sample_id == "N-3713" ~ "BATCH 1",
+    sample_id == "B-4033" ~ "BATCH 1",
+    sample_id == "B-4161" ~ "BATCH 1",
+    TRUE ~ NA_character_  # Optional: handle unmatched cases
+  ))
+# Display the updated data frame
+print(sample_id_batch_data)
+
+```
+
+```{r}
+TPM <- function(counts, length) {
+  reads_per_kilobase <- counts / (lengths/1000)
+  per_million <- sum(reads_per_kilobase, na.rm=TRUE) / 1e6
+  tpms <- reads_per_kilobase / per_million
+  return(tpms)
+}
+
+
+Merged_Lengths <- data.frame(lengths = Merged_Data$length)
+head(Merged_Lengths)
+
+
+lengths <- as.numeric(Merged_Lengths$lengths)
+
+
+```
+
+```{r}
+tpms <- Merged_Data
+for (i in 4:ncol(tpms))   # Check if the column is numeric
+  tpms[, i] <- TPM(tpms[, i], lengths)  # Use the lengths vector
+  
+log_tpms <- log(tpms[, 4:ncol(tpms)] + 1)
+
+x<-log_tpms %>%
+  t()
+
+PC_x<-prcomp(x)
+
+#you can see how much variation is explained by PC
+var_explained <- data.frame(PC= paste0("PC",1:ncol(PC_x$x)),
+                                var_explained=(PC_x$sdev)^2/sum((PC_x$sdev)^2)) 
+
+
+PC1to9_Var<-var_explained[1:9,]  # this looks at the first 9 PC
+PCs_x<-data.frame(PC_x$x)
+print(summary(PC_x))
+
+
+
+scree_plot <- ggplot(PC1to9_Var, aes(x=PC,y=var_explained*100, group=1))+ 
+  geom_point(size=4)+
+  geom_line()+
+  labs(title="Scree plot") + 
+  theme_classic(base_family = "Times", 
+                base_size = 14)
+print (scree_plot)
+
+scatter_plot <- ggplot(data = PCs_x, aes(x =PC1, y=PC2, size = 0.25, label=sample_id_batch_data$sample_id  # Assuming this is your correct variable
+, color = sample_id_batch_data$coloration, shape = sample_id_batch_data$batch_number)) +
+  geom_text(vjust=1)+
+  theme_classic(base_family = "Times", 
+                base_size = 14)+
+  geom_point()+
+  labs(title="PCA 1 vs PCA 2", subtitle="From Normalized Merged Human-Xenopus Data")+
+  theme(
+  panel.background = element_rect(fill = "#D6E0FF",
+                                colour = "#D6E0FF",
+                                size = 0.5, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.25, linetype = 'solid',
+                                colour = "#061A40"), 
+  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "#061A40")
+  )
+
+print(scatter_plot)
+```
+```{r}
+pca_scores <- as.data.frame(PC_x$x)
+# Example grouping vector (adjust this to your actual grouping variable)
+class <- c(sample_id_batch_data$coloration)  # Replace with your actual data
+
+# Create a new data frame with PCA scores and grouping information
+pca_data <- data.frame(PC1 = pca_scores$PC1, PC2 = pca_scores$PC2, PC3 = pca_scores$PC3, PC4 = pca_scores$PC4, PC5 = pca_scores$PC5, PC6 = pca_scores$PC6, PC7 = pca_scores$PC7, class = class)
+library(ggplot2)
+
+# Boxplot of PC1 vs PC2
+ggplot(pca_data, aes(x = class, y = PC1)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC1 by Group",
+       x = "Group",
+       y = "PC1") +
+  theme_classic()
+
+# Alternatively, if you want a boxplot for PC2:
+ggplot(pca_data, aes(x = class, y = PC2)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC2 by Group",
+       x = "Group",
+       y = "PC2") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC3)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC3 by Group",
+       x = "Group",
+       y = "PC3") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC4)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC4 by Group",
+       x = "Group",
+       y = "PC4") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC5)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC5 by Group",
+       x = "Group",
+       y = "PC5") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC6)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC6 by Group",
+       x = "Group",
+       y = "PC6") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC7)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC7 by Group",
+       x = "Group",
+       y = "PC7") +
+  theme_classic()
+```
+
+
+```{r}
+pca_scores <- as.data.frame(PC_x$x)
+class <- c(sample_id_batch_data$batch_number)  
+
+# Create a new data frame with PCA scores and grouping information
+pca_data <- data.frame(PC1 = pca_scores$PC1, PC2 = pca_scores$PC2, PC3 = pca_scores$PC3, PC4 = pca_scores$PC4, PC5 = pca_scores$PC5, PC6 = pca_scores$PC6, PC7 = pca_scores$PC7, class = class)
+library(ggplot2)
+
+# Boxplot of PC1 vs PC2
+ggplot(pca_data, aes(x = class, y = PC1)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC1 by Group",
+       x = "Group",
+       y = "PC1") +
+  theme_classic()
+
+# Alternatively, if you want a boxplot for PC2:
+ggplot(pca_data, aes(x = class, y = PC2)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC2 by Group",
+       x = "Group",
+       y = "PC2") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC3)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC3 by Group",
+       x = "Group",
+       y = "PC3") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC4)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC4 by Group",
+       x = "Group",
+       y = "PC4") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC5)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC5 by Group",
+       x = "Group",
+       y = "PC5") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC6)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC6 by Group",
+       x = "Group",
+       y = "PC6") +
+  theme_classic()
+
+ggplot(pca_data, aes(x = class, y = PC7)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of PC7 by Group",
+       x = "Group",
+       y = "PC7") +
+  theme_classic()
+```
+```
+
+

@@ -1,0 +1,164 @@
+```{r}
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(writexl)
+
+# Step 1: Load the merged dataset
+merged_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/merged_all_samples_keep_first_bundle_id.xlsx"
+merged_data <- read_excel(merged_data_path)
+merged_data <- merged_data %>%
+  select(-bundle_id.x)
+# Step 2: Create a new column that sums the raw counts across all sample columns
+# We assume that the sample columns start with "B-" or "N-" as shown in the screenshot
+merged_data <- merged_data %>%
+  mutate(sum_raw_counts = rowSums(select(., starts_with("B-"), starts_with("N-"))))
+
+# Step 3: Calculate how many rows have a sum of raw counts equal to 0
+zero_sum_count <- sum(merged_data$sum_raw_counts == 0)
+cat("Number of rows where sum of raw counts is 0:", zero_sum_count, "\n")
+
+#Number of rows where sum of raw counts is 0: 62985 
+
+# Step 4: Drop rows where the sum of raw counts is equal to 0
+merged_data_filtered <- merged_data %>%
+  filter(sum_raw_counts != 0)
+
+# Step 5: View the updated dataset after removing rows with sum_raw_counts = 0
+head(merged_data_filtered)
+
+# Step 6: Save the filtered dataset to a new file
+filtered_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/filtered_merged_data.xlsx"
+write_xlsx(merged_data_filtered, filtered_data_path)
+
+cat("Filtered dataset has been saved to:", filtered_data_path, "\n")
+
+
+```
+
+
+```{r}
+# Load necessary libraries
+library(readr)  # For reading .txt files
+library(writexl)  # For writing .xlsx files
+
+# Step 1: Define the path to the .txt file
+txt_file_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/tx2gene.txt"
+
+# Step 2: Read the .txt file (assuming it's tab-delimited; adjust the delimiter if needed)
+tx2gene_data <- read_delim(txt_file_path, delim = "\t")  # Adjust 'delim' if the file uses a different delimiter (e.g., ',')
+
+# Step 3: Define the path for the .xlsx file
+xlsx_file_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/tx2gene.xlsx"
+
+# Step 4: Write the data to an Excel (.xlsx) file
+write_xlsx(tx2gene_data, xlsx_file_path)
+
+# Optional: Print confirmation
+cat("File has been converted and saved as:", xlsx_file_path, "\n")
+
+
+```
+
+
+
+```{r}
+# Step 1: Load necessary libraries
+library(readxl)
+library(dplyr)
+
+# Step 2: Load the merged dataset
+merged_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/express_revised/merged_all_samples_keep_first_bundle_id.xlsx"
+merged_data <- read_excel(merged_data_path)
+#head(merged_data)
+
+# Step 3: Load the Trinity to ENSEMBL gene ID mapping file
+mapping_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/tx2gene.xlsx"  # Replace with actual file path
+
+
+mapping_data <- read_excel(mapping_data_path)
+
+# Step 4: Check overlap between 'target_id' in the merged dataset and 'TrinityID' in the mapping file
+merged_target_ids <- merged_data$target_id
+trinity_ids <- mapping_data$TrinityID  # Assuming the TrinityID column is named 'TrinityID' in the mapping data
+
+# Calculate the overlap
+common_ids <- intersect(merged_target_ids, trinity_ids)
+overlap_count <- length(common_ids)
+total_merged_ids <- length(merged_target_ids)
+total_trinity_ids <- length(trinity_ids)
+
+# Calculate the overlap percentage
+overlap_percentage <- (overlap_count / total_merged_ids) * 100
+
+# Print the overlap results
+cat("Number of overlapping IDs:", overlap_count, "\n")
+cat("Total IDs in merged data:", total_merged_ids, "\n")
+cat("Total Trinity IDs in mapping file:", total_trinity_ids, "\n")
+cat("Percentage overlap:", overlap_percentage, "%\n")
+
+
+
+```
+```{r}
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(writexl)
+
+# Step 1: Load the merged dataset
+merged_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/merged_all_samples_keep_first_bundle_id.xlsx"
+merged_data <- read_excel(merged_data_path)
+
+# Step 2: Rename the 'target_id' column to 'TrinityID'
+merged_data <- merged_data %>%
+  rename(TrinityID = target_id)
+
+# Step 3: View the first few rows to confirm the change
+head(merged_data)
+
+# Step 4: Save the updated dataset to a new Excel file
+updated_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/updated_merged_all_samples_TrinityID.xlsx"
+write_xlsx(merged_data, updated_data_path)
+
+# Optional: Print confirmation
+cat("The 'target_id' column has been renamed to 'TrinityID', and the updated file has been saved to:", updated_data_path, "\n")
+
+```
+
+```{r}
+
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(writexl)
+
+# Step 1: Load the tx2gene mapping data
+tx2gene_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/tx2gene.xlsx"
+tx2gene_data <- read_excel(tx2gene_path)
+head(tx2gene_data)
+# Step 2: Load the filtered merged data (without bundle_id)
+filtered_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/updated_merged_all_samples_TrinityID.xlsx"
+filtered_merged_data <- read_excel(filtered_data_path)
+
+# Step 3: Perform an inner join to keep only overlapping rows based on 'TrinityID'
+# Assuming the 'target_id' column is present in both datasets
+final_merged_data <- inner_join(filtered_merged_data, tx2gene_data, by = "TrinityID")
+
+# Step 4: View the first few rows of the final merged dataset
+head(final_merged_data)
+
+# Step 5: Save the final merged dataset as an Excel file
+final_merged_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/final_merged_overlap_data.xlsx"
+write_xlsx(final_merged_data, final_merged_path)
+
+# Optional: Print confirmation message
+cat("Final merged dataset with overlap has been saved to:", final_merged_path, "\n")
+
+final_merged_data <- final_merged_data %>%
+  select(-starts_with("bundle_id"))
+head(final_merged_data)
+View(final_merged_data)
+#final_merged_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/final_merged_overlap_data.xlsx"
+```
+

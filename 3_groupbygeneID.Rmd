@@ -1,0 +1,46 @@
+```{r}
+# Count the occurrences of each Gene_ID
+gene_id_counts <- final_merged_data %>%
+  count(Gene_ID) %>%
+  arrange(desc(n))  # Arrange by the number of occurrences
+
+# View the first few rows to see which Gene_IDs are repeated and their counts
+head(gene_id_counts)
+
+# Find how many Gene_IDs are repeated
+repeated_gene_ids <- gene_id_counts %>%
+  filter(n > 1)
+
+# Count the number of Gene_IDs that are repeated
+num_repeated_gene_ids <- nrow(repeated_gene_ids)
+cat("Number of Gene_IDs that are repeated:", num_repeated_gene_ids, "\n")
+
+# View the repeated Gene_IDs and their counts
+head(repeated_gene_ids)
+
+```
+```{r}
+# Group by Gene_ID and summarize the raw counts for each sample column
+# Ensure the first TrinityID is kept for each Gene_ID
+final_merged_data_grouped <- final_merged_data %>%
+  group_by(Gene_ID) %>%
+  summarise(
+    TrinityID = first(TrinityID),  # Keep the first TrinityID for each Gene_ID
+    length = first(length),  # Keep the first value of 'length' for each Gene_ID
+    across(starts_with("B-"), sum),  # Sum raw counts for samples starting with "B-"
+    across(starts_with("N-"), sum)   # Sum raw counts for samples starting with "N-"
+  )
+
+# View the first few rows of the grouped data
+head(final_merged_data_grouped)
+View(final_merged_data_grouped)
+# Save the grouped data to an Excel file
+grouped_data_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/final_merged_grouped_by_gene_id.xlsx"
+write_xlsx(final_merged_data_grouped, grouped_data_path)
+
+# Optional: Print confirmation message
+cat("The grouped dataset by 'Gene_ID' with the first TrinityID retained has been saved to:", grouped_data_path, "\n")
+
+```
+
+

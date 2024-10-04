@@ -1,0 +1,89 @@
+```{r}
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+
+# Step 1: Load the Excel file
+mapping_rate_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/mapping rate.xlsx"
+mapping_data <- read_excel(mapping_rate_path)
+
+# Step 2: View the first few rows of the data
+head(mapping_data)
+
+# Step 3: Perform basic descriptive statistics
+summary_stats <- mapping_data %>%
+  summarise(
+    Mean = mean(`mapping rate`),
+    Standard_Deviation = sd(`mapping rate`),
+    Minimum = min(`mapping rate`),
+    Maximum = max(`mapping rate`),
+    Median = median(`mapping rate`),
+    Range = max(`mapping rate`) - min(`mapping rate`)
+  )
+
+# Step 4: Print the statistics
+print(summary_stats)
+
+# Optional: If you want to visualize the data with a histogram
+hist(mapping_data$`mapping rate`, 
+     main = "Distribution of Mapping Rates", 
+     xlab = "Mapping Rate", 
+     col = "lightblue", 
+     border = "black")
+
+```
+```{r}
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Step 1: Load the Excel file
+mapping_rate_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/mapping rate.xlsx"
+mapping_data <- read_excel(mapping_rate_path)
+
+# Step 2: Add a column to differentiate between sample groups (assuming 'B-' vs 'N-' is the grouping)
+mapping_data <- mapping_data %>%
+  mutate(group = ifelse(grepl("B-", sample_id), "B_group", "N_group"))
+
+# Step 3: Perform basic descriptive statistics
+summary_stats <- mapping_data %>%
+  group_by(group) %>%
+  summarise(
+    Mean = mean(`mapping rate`),
+    Standard_Deviation = sd(`mapping rate`),
+    Minimum = min(`mapping rate`),
+    Maximum = max(`mapping rate`),
+    Median = median(`mapping rate`),
+    Range = max(`mapping rate`) - min(`mapping rate`)
+  )
+
+print(summary_stats)
+
+# Step 4: Perform t-test to compare 'B_group' and 'N_group'
+t_test_result <- t.test(`mapping rate` ~ group, data = mapping_data)
+print(t_test_result)
+
+# Step 5: Create a violin plot to show the distribution of mapping rates per group
+ggplot(mapping_data, aes(x = group, y = `mapping rate`, fill = group)) +
+  geom_violin(trim = FALSE) +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "black") +
+  stat_summary(fun = mean, geom = "point", shape = 20, size = 5, color = "red") +
+  labs(title = "Violin Plot of Mapping Rates by Group",
+       x = "Group",
+       y = "Mapping Rate") +
+  theme_minimal()
+
+# Step 6: Create a scatter plot showing mapping rates per sample
+ggplot(mapping_data, aes(x = sample_id, y = `mapping rate`, color = group)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "blue") +
+  labs(title = "Scatter Plot of Mapping Rates per Sample",
+       x = "Sample ID",
+       y = "Mapping Rate") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
