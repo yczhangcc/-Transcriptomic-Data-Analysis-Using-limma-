@@ -1,0 +1,124 @@
+---
+title: "Limma_Simplified"
+output: html_document
+date: "2024-10-03"
+---
+
+```{r setup, include=FALSE}
+library(Biobase)
+library(limma)
+library(edgeR)
+library(assertthat)
+library(tidyverse)
+library(dplyr)
+library(grid)
+library(gridExtra)
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+```
+
+#Read in necessary data
+```{r}
+# Step 1: Read in the expression data from the final_merged_grouped_by_gene_id.xlsx file
+# Use 'Gene_ID' as the rownames
+tmm_all <- read_xlsx("/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/final_subset_grouped.xlsx") %>%
+  column_to_rownames("...1")  # Setting 'Gene_ID' as rownames
+
+# Step 2: View the column names and first few rows to ensure the data is loaded correctly
+colnames(tmm_all)
+head(tmm_all)
+
+# Step 3: Read in the metadata file (meta_glassfrog.xlsx)
+metadata <- read_xlsx("/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/meta_glassfrog.xlsx")
+
+# Step 4: Check the structure of the metadata to ensure it matches the sample names
+colnames(metadata)
+head(metadata)
+
+# Step 5: Create the design matrix based on the 'pigmented', 'unpigmented', and 'batch1' variables
+# Ensuring the 'ID' column is used for matching samples with the expression data
+design <- model.matrix(~ pigmented + batch1, data = metadata_filtered)
+
+# Step 6: Set the rownames of the design matrix to match the sample IDs
+rownames(design) <- metadata$ID
+
+# Step 7: View the design matrix to ensure correctness
+head(design)
+
+```
+```{r}
+# Check the number of samples in the expression data
+ncol(tmm_all)  # This gives the number of columns, which are the samples in your expression data
+
+# Check the number of samples in the metadata
+nrow(metadata)  # This gives the number of rows in your metadata, which should match the number of samples
+
+# Compare the sample IDs between the two datasets
+expression_samples <- colnames(tmm_all)
+metadata_samples <- metadata$ID
+
+# Identify mismatched samples (if any)
+setdiff(expression_samples, metadata_samples)
+setdiff(metadata_samples, expression_samples)
+# Filter expression data to keep only matching samples from metadata
+tmm_all_filtered <- tmm_all[, colnames(tmm_all) %in% metadata$ID]
+
+# Filter metadata to keep only matching samples from expression data
+metadata_filtered <- metadata %>% filter(ID %in% colnames(tmm_all_filtered))
+
+# Check that the number of samples now matches
+ncol(tmm_all_filtered)
+nrow(metadata_filtered)
+
+# Now, re-create the design matrix and proceed with the rest of the analysis
+design <- model.matrix(~ pigmented + unpigmented + batch1, data = metadata_filtered)
+rownames(design) <- metadata_filtered$ID
+
+# Continue with the rest of the analysis...
+
+```
+```{r}
+# Step 8: Create a DGEList object using the filtered expression data
+dge <- DGEList(counts = tmm_all_filtered)
+
+# Step 9: Log-transform the data using counts per million (CPM)
+logCPM <- cpm(dge, log = TRUE, prior.count = 3)
+
+# Step 10: Apply duplicate correlation to adjust for repeated measures or blocking factors (batch effect)
+dupcor <- duplicateCorrelation(logCPM, design, block = metadata_filtered$batch1)
+
+# Step 11: Fit the linear model accounting for the blocking variable (batch1)
+fitDupCor <- lmFit(logCPM, design, block = metadata_filtered$batch1, correlation = dupcor$consensus)
+
+# Step 12: Apply empirical Bayes to smooth standard errors
+fitDupCor <- eBayes(fitDupCor)
+
+# Step 13: Define the contrasts for comparisons (e.g., pigmented vs. unpigmented)
+# As we only have 'pigmented' now, use that in the contrast
+cm <- makeContrasts(
+  pigmented_vs_unpigmented = pigmented,  # Compare pigmented against unpigmented
+  levels = design
+)
+
+# Step 14: Apply the contrasts to the fitted model
+fit2 <- contrasts.fit(fitDupCor, cm)
+
+# Step 15: Apply empirical Bayes moderation to the contrast fits
+fit2 <- eBayes(fit2, .05, trend = TRUE)
+
+# Step 16: Generate the results for the differentially expressed genes
+results <- topTable(fit2, adjust = "fdr", number = Inf)
+
+# Step 17: View the results of the differentially expressed genes
+head(results)
+
+# Step 18: Save the results to a file for further analysis
+write.csv(results, file = "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/limma_differential_expression_results.csv")
+
+# Optional: Save filtered expression data for reference
+write_xlsx(tmm_all_filtered, "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/filtered_expression_data.xlsx")
+```
+
+
+

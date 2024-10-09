@@ -1,0 +1,120 @@
+```{r}
+# Load necessary libraries
+library(limma)
+library(edgeR)
+library(readxl)
+
+# Define dataset and metadata paths
+dataset_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/final_subset_grouped.xlsx"
+metadata_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/meta_glassfrog.xlsx"
+
+# Read in the counts data
+counts <- read_excel(dataset_path)
+counts <- as.data.frame(counts)
+row.names(counts) <- counts[, 1]
+counts <- counts[, -1]
+
+# Read in metadata
+metadata <- read_excel(metadata_path)
+row.names(metadata) <- metadata$ID
+metadata <- metadata[, -1]
+
+# Check dimensions
+dim(counts) # Ensure the number of samples match
+dim(metadata) 
+
+# Create DGEList object
+dge <- DGEList(counts = counts)
+
+# Filter low-expressed genes
+keep <- rowSums(cpm(dge) > 1) >= 2
+dge <- dge[keep, , keep.lib.sizes = FALSE]
+
+# Normalize the counts using TMM
+dge <- calcNormFactors(dge)
+
+# Define the design matrix using pigmentation and batch as factors
+design <- model.matrix(~pigmented + batch1, data = metadata)
+
+# Apply voom transformation
+v <- voom(dge, design, plot = TRUE)
+
+# Fit the linear model
+fit <- lmFit(v, design)
+
+# Apply empirical Bayes moderation
+fit <- eBayes(fit)
+
+# Get the top differentially expressed genes
+top_genes <- topTable(fit, adjust.method = "fdr", number = Inf)
+head(top_genes)
+
+# Write the results to a file
+write.csv(top_genes, file = "voom_differential_expression_results.csv")
+
+
+```
+```{r}
+# Load necessary libraries
+library(limma)
+library(edgeR)
+library(readxl)
+
+# Define dataset and metadata paths
+dataset_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/final_subset_grouped.xlsx"
+metadata_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/limma/meta_glassfrog.xlsx"
+
+# Read in the counts data
+counts <- read_excel(dataset_path)
+counts <- as.data.frame(counts)
+row.names(counts) <- counts[, 1]
+counts <- counts[, -1]
+
+# Read in metadata
+metadata <- read_excel(metadata_path)
+row.names(metadata) <- metadata$ID
+metadata <- metadata[, -1]
+
+# Check dimensions
+dim(counts) # Ensure the number of samples match
+dim(metadata)
+
+# Create DGEList object
+dge <- DGEList(counts = counts)
+
+# Filter low-expressed genes
+keep <- rowSums(cpm(dge) > 1) >= 2
+dge <- dge[keep, , keep.lib.sizes = FALSE]
+
+# Normalize the counts using TMM
+dge <- calcNormFactors(dge)
+
+# Define the design matrix using pigmentation and batch as factors
+design <- model.matrix(~ pigmented + batch1, data = metadata)
+
+# Apply voom transformation with a plot of mean-variance trend
+v <- voom(dge, design, plot = TRUE)
+
+# Fit the linear model
+fit <- lmFit(v, design)
+
+# Define contrasts to compare pigmented and unpigmented
+contrast_matrix <- makeContrasts(pigmented = pigmented, levels = design)
+
+# Fit contrasts
+fit2 <- contrasts.fit(fit, contrast_matrix)
+fit2 <- eBayes(fit2)
+
+# Get the top differentially expressed genes
+top_genes <- topTable(fit2, adjust.method = "fdr", number = Inf)
+head(top_genes)
+
+# Write the results to a file
+write.csv(top_genes, file = "differential_expression_results_pigmented_vs_unpigmented.csv")
+
+# Visualize more mean-variance trend
+plotSA(fit2, main = "Residual standard deviation vs average expression")
+
+```
+
+
