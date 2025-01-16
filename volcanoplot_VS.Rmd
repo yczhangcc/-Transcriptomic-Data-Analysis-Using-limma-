@@ -1,0 +1,123 @@
+
+
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(readr)
+
+# Load the dataset
+file_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/volcanoplot/glassfrog_Obs_Perm_Treatment_with_logFC.csv"
+data <- read_csv(file_path)
+
+# Define significance categories without recalculating counts
+data <- data %>%
+  mutate(sig_category = case_when(
+    SigInfo == 3 ~ "Both Significant (p & q)",
+    SigInfo == 2 ~ "Significant by q-value",
+    SigInfo == 1 ~ "Significant by p-value",
+    TRUE ~ "Not Significant"
+  ))
+
+# Correct mapping of custom labels and colors
+custom_labels <- c(
+  "Both Significant (p & q): 48",
+  "Not Significant: 2145",
+  "Significant by p-value: 44",
+  "Significant by q-value: 14"
+)
+
+custom_colors <- c(
+  "Both Significant (p & q)" = "#FF5733",  # Red for both significant
+  "Significant by q-value" = "#33FF57",    # Green for q-value significant
+  "Significant by p-value" = "#3357FF",    # Blue for p-value significant
+  "Not Significant" = "#999999"           # Grey for not significant
+)
+
+
+
+# Generate the volcano plot
+volcano_plot <- ggplot(data, aes(x = logFC, y = -log10(p_value), color = sig_category)) +
+  geom_point(alpha = 0.8, size = 4) +      # Larger points with better transparency
+  scale_color_manual(
+    values = custom_colors,
+    name = "Significance Category",
+    labels = custom_labels
+  ) +
+  labs(
+    title = "Volcano Plot: Observed vs Permuted Treatment",
+    subtitle = "Dashed lines indicate logFC and p-value thresholds",
+    x = "Log2 Fold Change ",
+    y = "-Log10(p-value)"
+  ) +
+  theme_minimal(base_size = 14) +          # Minimal theme with larger base size
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  # Centered title
+    plot.subtitle = element_text(hjust = 0.5, size = 14),             # Centered subtitle
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 12),
+    axis.title = element_text(size = 14, face = "bold"),              # Bold axis titles
+    axis.text = element_text(size = 12),
+    panel.grid.minor = element_blank(),                               # Remove minor grid lines
+    panel.border = element_blank(),                                   # Remove panel border
+    axis.line.x = element_line(color = "black", size = 1.0),          # Custom axis lines
+    axis.line.y = element_line(color = "black", size = 1.0),
+    legend.position = "right",                                         # Move legend to the right
+     panel.background = element_rect(fill = "white", color = NA),  # Set white background
+    plot.background = element_rect(fill = "white", color = NA)   # Set white plot background
+  ) +
+  # Add scientifically valid dashed lines
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black", size = 0.8) +
+  geom_vline(xintercept = c(-1.8, 1.8), linetype = "dashed", color = "black", size = 0.8)+
+  # Add vertical line labels
+  annotate("text", x = -1.8, y = 6, label = "-1.8", color = "black", size = 5, hjust = 1.2) +
+  annotate("text", x = 1.8, y = 6, label = "1.8", color = "black", size = 5, hjust = -0.2) 
+
+# Save the plot in high quality
+output_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/volcanoplot/scientific_volcano_plot_final_corrected.png"
+ggsave(output_path, plot = volcano_plot, width = 10, height = 7, dpi = 700)
+
+# Display the plot
+print(volcano_plot)
+
+```
+
+```{r}
+# Load necessary libraries
+library(EnhancedVolcano)
+library(readr)
+library(dplyr)
+
+# Load the dataset
+file_path <- "/stor/work/FRI_321G_RY_Spring2024/Summer2024/glassfrogs/Cecilia_Fall/volcanoplot/glassfrog_Obs_Perm_Treatment.csv"
+data <- read_csv(file_path)
+
+# Generate logFC from t_observed (as proxy for effect size) or other logical column
+# Assuming t_observed reflects an effect size to base logFC on:
+data <- data %>%
+  mutate(logFC = t_observed)  # Directly use `t_observed` for logFC
+
+# Replace invalid or missing values in logFC
+data$logFC[is.na(data$logFC)] <- 0
+
+# Generate the volcano plot
+EnhancedVolcano(data,
+    lab = data$GeneID,       # Use GeneID as labels
+    x = 'logFC',             # Use the generated logFC column
+    y = 'p_value',           # Use the p-value column
+    title = 'Volcano Plot: Observed vs Permuted Treatment',
+    subtitle = NULL,         # No subtitle
+    legendLabels = c('NS', 'Log (base 2) FC', 'p-value', 'p-value & Log (base 2) FC'),
+    xlab = "Log (base 2) fold difference",
+    ylab = "-Log (base 10) p-value",
+    ylim = c(0, 10),         # Adjust y-axis limits based on the range of p-values
+    xlim = c(-5, 5),         # Adjust x-axis limits based on logFC
+    pCutoff = 0.05,          # P-value cutoff for significance
+    FCcutoff = 1,            # Log2 fold change cutoff
+    pointSize = 2,           # Adjust point size
+    labSize = 3,             # Adjust label size
+    col = c('grey30', 'forestgreen', 'royalblue', 'red2'), # Colors for significance levels
+    colAlpha = 0.8           # Transparency for points
+)
+
+```
